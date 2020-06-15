@@ -100,7 +100,7 @@ def control_loop():
         theta_err = map_angle(theta_ref - pose[2])
 
         ### Debug string 
-        print("\n heading:{:0.5f},\tref:{:0.5f},\terror:{:0.5f}".format(pose[2], theta_ref, theta_err))
+        #print("\n heading:{:0.5f},\tref:{:0.5f},\terror:{:0.5f}".format(pose[2], theta_ref, theta_err))
         
         ### Apply the proportional control
         K1=0.4  ## not aggressive
