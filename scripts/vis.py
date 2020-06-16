@@ -27,18 +27,6 @@ plt.ion()
 K_samp = 0
 def get_waypoint():
     return (0, 0) 
-
-fig2 = plt.figure()
-ax2 = fig2.add_subplot(111, polar=True)
-ax2.set_thetamin(0)
-ax2.set_thetamax(360)
-ax2.set_rlim(0)
-ax2.set_rticks([2, 4, 6, 8, 10])  # Less radial ticks
-ax2.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
-ax2.grid(True)
-ax2.legend()
-line_scans2, = ax2.plot([], [], 'r.', alpha=0.9, ms=5 )
-
 LIM = 6
 XLIM = 6
 fig, ax = plt.subplots(1, 1)
@@ -96,7 +84,7 @@ def waypoint_listener( data):
             
 
 def cb_scans( data):
-    global line_scans, cur_pose, line_scans2
+    global line_scans, cur_pose
     x = [ ]
     y = [ ]
     sensor_readings = (data.data)
@@ -116,7 +104,6 @@ def cb_scans( data):
         y.append(cur_pose[1] + dy)
     #line_scans.set_data([cur_pose[0], cur_pose[0]+dx], [cur_pose[1], cur_pose[1]+dy])
     line_scans.set_data(x,y)
-    line_scans2.set_data(bearings,ranges)
     rospy.loginfo_once('from vis.py {}'.format(data.data))
     #print("The type of data :{}",type(waypoint))
 
@@ -132,10 +119,8 @@ def process():
     print("Starting animation")
     
     while not rospy.is_shutdown():
-        #fig.canvas.draw()
-        #fig.canvas.flush_events()
-        fig2.canvas.draw()
-        fig2.canvas.flush_events()
+        fig.canvas.draw()
+        fig.canvas.flush_events()
         
         rate.sleep()
 
