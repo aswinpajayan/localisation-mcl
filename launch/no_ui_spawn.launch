@@ -19,6 +19,6 @@
           args="-urdf -param robot_description -model m2wr -x $(arg x) -y $(arg y) -z $(arg z)" />
     <node name="visualiser" pkg="sem_localise" type="vis.py" output="screen"/>
     <node name="robot_control" pkg="sem_localise" type="controller.py" output="screen"/>
-    <node name="sensor_read" pkg="sem_localise" type="read_laser_data.py" output="screen"/>
+    <node name="sensor_read" pkg="sem_localise" type="read_laser_data.py" output="screen" />
           
 </launch>

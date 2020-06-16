@@ -17,5 +17,8 @@
     
     <node name="mybot_spawn" pkg="gazebo_ros" type="spawn_model" output="screen"
           args="-urdf -param robot_description -model m2wr -x $(arg x) -y $(arg y) -z $(arg z)" />
+    <node name="visualiser" pkg="sem_localise" type="vis.py"/>
+    <node name="robot_control" pkg="sem_localise" type="controller.py" output="screen"/>
+    <node name="sensor_read" pkg="sem_localise" type="read_laser_data.py" />
           
 </launch>

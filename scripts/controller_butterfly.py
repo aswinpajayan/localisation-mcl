@@ -29,9 +29,9 @@ def callback(data):
 ### this function will help in sampling the waypoints
 def get_waypoint(t):
     global K_samp       ## defined at line 17
-    A =1 
-    B =1
-    a =2
+    A =3 
+    B =3
+    a =1
     b =2
     x  = A*cos(a*t*K_samp)
     y  = B*sin(b*t*K_samp)
@@ -103,12 +103,12 @@ def control_loop():
         #print("\n heading:{:0.5f},\tref:{:0.5f},\terror:{:0.5f}".format(pose[2], theta_ref, theta_err))
         
         ### Apply the proportional control
-        K1=0.8  ## not aggressive
+        K1=0.4  ## not aggressive
         K2=2.0  ## aggressive
         
         
         velocity_msg = Twist()
-        velocity_msg.linear.x = sat(K1*dist_error*cos(theta_err), 0.4)
+        velocity_msg.linear.x = sat(K1*dist_error*cos(theta_err), 0.25)
         velocity_msg.angular.z = sat(K2*theta_err, 0.5)
         
         

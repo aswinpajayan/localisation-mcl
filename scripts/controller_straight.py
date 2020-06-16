@@ -7,11 +7,12 @@ from nav_msgs.msg import Odometry
 from quat2euler import quat2euler
 
 
-import numpy
+import numpy as np
 import time
 from math import sin, cos, atan2, pi
 
-
+x = np.array([0,6,-3,0,0],dtype=np.float)
+y = np.array([0,4,3,-1,0],dtype=np.float)
 pose = [0.0, 0.0, 0.0]
 ### This parameter controls how close we want to generate the waypoints
 K_samp = 0.07
@@ -28,14 +29,14 @@ def callback(data):
 
 ### this function will help in sampling the waypoints
 def get_waypoint(t):
-    global K_samp       ## defined at line 17
-    A =1 
-    B =1
-    a =2
+    global K_samp,x,y       ## defined at line 17
+    A =3 
+    B =3
+    a =1
     b =2
-    x  = A*cos(a*t*K_samp)
-    y  = B*sin(b*t*K_samp)
-    return [x,y] 
+    #x  = A*cos(a*t*K_samp)
+    #y  = B*sin(b*t*K_samp)
+    return [x[t],y[t]] 
 
 ### Plot the waypoints :   uses K_samp defined in line 17
 def plot_waypoints():
@@ -84,9 +85,16 @@ def control_loop():
     while not rospy.is_shutdown():
     
         ## When close to waypoint, sample a new waypoint
-        if dist_error < 0.3:
-            i = i+1
-            wp = get_waypoint(i)
+        v = 1.0
+        w = 0.0
+        if pose[0] > 1:
+            v = 0.1
+            w = 0.8
+            if dist_error < 0.3:
+                i = i+1
+                v= 0.05
+                w = 2.0
+                wp = get_waypoint(i)
         
 
 
@@ -98,22 +106,26 @@ def control_loop():
         dist_error = (x_err**2 + y_err**2)**0.5
         
         theta_err = map_angle(theta_ref - pose[2])
+        w = 0.0 if theta_err < np.pi/5 else 2.0
 
         ### Debug string 
         #print("\n heading:{:0.5f},\tref:{:0.5f},\terror:{:0.5f}".format(pose[2], theta_ref, theta_err))
         
         ### Apply the proportional control
-        K1=0.8  ## not aggressive
-        K2=2.0  ## aggressive
+        K1=0.2 ## not aggressive
+        K2=0.4 ## aggressive
         
         
         velocity_msg = Twist()
-        velocity_msg.linear.x = sat(K1*dist_error*cos(theta_err), 0.4)
-        velocity_msg.angular.z = sat(K2*theta_err, 0.5)
+        #velocity_msg.linear.x = sat(K1*dist_error*cos(theta_err), 0.25)
+        #velocity_msg.angular.z = sat(K2*theta_err, 2.0)
+        velocity_msg.linear.x = v
+        velocity_msg.angular.z = w
         
         
         pub.publish(velocity_msg)
-
+        if pose[0] > 5 or pose[0]  < -7:
+            break
         
         #print("Controller message pushed at {}".format(rospy.get_time()))
         rate.sleep()

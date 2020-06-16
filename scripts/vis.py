@@ -6,23 +6,41 @@ from rospy.numpy_msg import numpy_msg
 from std_msgs.msg import String
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
-from quat2euler import quat2euler
-
-from math import cos, sin, pi, hypot
+import time
+from math import cos, sin, pi
 import numpy as np
-
 import matplotlib.pyplot as plt
 #from controller import K_samp, get_waypoint
 
+from quat2euler import quat2euler
+
+
+### Map angle to within [-pi, pi]
+def map_angle(theta):
+    if(theta > pi):
+        theta = -(2*pi-theta)
+    elif(theta < -pi):
+        theta = (2*pi+theta)
+    return theta
 plt.ion()
 
 K_samp = 0
 def get_waypoint():
-    return (0,0) 
+    return (0, 0) 
 
+fig2 = plt.figure()
+ax2 = fig2.add_subplot(111, polar=True)
+ax2.set_thetamin(0)
+ax2.set_thetamax(360)
+ax2.set_rlim(0)
+ax2.set_rticks([2, 4, 6, 8, 10])  # Less radial ticks
+ax2.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
+ax2.grid(True)
+ax2.legend()
+line_scans2, = ax2.plot([], [], 'r.', alpha=0.9, ms=5 )
 
-LIM=8
-XLIM=10
+LIM = 6
+XLIM = 6
 fig, ax = plt.subplots(1, 1)
 #ax.set_autoscaley_on(True)
 ax.set_xlabel('X (m)')
@@ -36,7 +54,7 @@ line_poses = []
 line_scans = []
 cur_pose = []
 
-map_true = np.array([[-5,4],[4,4],[2,-1],[2,-5],[-5,2],[-3,6]])
+map_true = np.array([[3,1],[0,5],[-2,3],[-4,-1],[1,-2],[2,-1]])
 tracking_points = np.array([0,0])
 line_waypoints, = ax.plot([], [], 'b.', label="waypoint", ms=5)
 line_poses2, = ax.plot([],[],'r', lw=3 , alpha=0.9 )
@@ -62,7 +80,7 @@ def pose_listener( data):
     dy = delta*sin(pose[2])
 
     line_poses2.set_data([pose[0], pose[0]+dx], [pose[1], pose[1]+dy])
-    
+
     ## save the tracks to plot later
     p = np.array([pose[0], pose[1]])
     if(np.linalg.norm(tracking_points[-1] - p) > 0.5):
@@ -78,27 +96,46 @@ def waypoint_listener( data):
             
 
 def cb_scans( data):
-    global line_scans,cur_pose
-    bearings = data.data
-    delta = 10
-    for theta in bearings:
-    	dx = delta*cos(theta + cur_pose[2])
-    	dy = delta*sin(theta + cur_pose[2] )
-
-    line_scans.set_data([cur_pose[0], cur_pose[0]+dx], [cur_pose[1], cur_pose[1]+dy])
+    global line_scans, cur_pose, line_scans2
+    x = [ ]
+    y = [ ]
+    sensor_readings = (data.data)
+    rospy.loginfo_once(type(data.data))
+    rospy.loginfo_once(data.data.shape)
+    sensor_readings = np.array(sensor_readings, dtype='float32').reshape(2, -1)
+    bearings = sensor_readings[0]
+    ranges = sensor_readings[1]
+    for i, theta in enumerate(bearings):
+        x.append(cur_pose[0])
+        y.append(cur_pose[1])
+        delta = ranges[i]
+        #rospy.loginfo(delta)
+        dx = delta*np.cos(map_angle(-np.pi/2 + theta + map_angle( cur_pose[2])))
+        dy = delta*np.sin(map_angle(-np.pi/2 + theta  + map_angle(cur_pose[2])))
+        x.append(cur_pose[0] + dx)
+        y.append(cur_pose[1] + dy)
+    #line_scans.set_data([cur_pose[0], cur_pose[0]+dx], [cur_pose[1], cur_pose[1]+dy])
+    line_scans.set_data(x,y)
+    line_scans2.set_data(bearings,ranges)
+    rospy.loginfo_once('from vis.py {}'.format(data.data))
     #print("The type of data :{}",type(waypoint))
 
 def process():
     
     rospy.init_node('plotting_node', anonymous=True)
     rospy.Subscriber('/odom', Odometry, pose_listener)
-    rospy.Subscriber("range_readings", numpy_msg(Floats), cb_scans)
-    
+    rospy.Subscriber('/range_readings', numpy_msg(Floats), cb_scans)
+  
     rate = rospy.Rate(10) # 10hz
+    print("Waiting for gazebo to start")
+    time.sleep(5)
+    print("Starting animation")
     
     while not rospy.is_shutdown():
-        fig.canvas.draw()
-        fig.canvas.flush_events()
+        #fig.canvas.draw()
+        #fig.canvas.flush_events()
+        fig2.canvas.draw()
+        fig2.canvas.flush_events()
         
         rate.sleep()
 
