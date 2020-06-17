@@ -1,17 +1,12 @@
 #!/usr/bin/env python
+import time
+import numpy as np
+
 import rospy
-from std_msgs.msg import String
 from geometry_msgs.msg import Twist
-from nav_msgs.msg import Odometry
 from rospy_tutorials.msg import Floats
 from rospy.numpy_msg import numpy_msg
 
-from quat2euler import quat2euler
-
-
-import numpy as np
-import time
-from math import sin, cos, atan2, pi, hypot
 
 T_MINUS_1 = 0
 NUM = 40
@@ -20,7 +15,7 @@ PREV_CMD = [0, 0, 0]
 #PARTICLES = (np.random.rand(NUM * 3) * 6)- 3
 PARTICLES = np.zeros(NUM * 3)
 
- 
+
 def cb_mcl(data):
     """ callback to perform montecarlo localisation
     triggered when controller issues a motion command
@@ -46,22 +41,15 @@ def cb_mcl(data):
     T_MINUS_1 = now
 
 
-def map_angle(theta):
-    if(theta > pi):
-        theta = -(2*pi-theta)
-    elif(theta < -pi):
-        theta = (2*pi+theta)
-    return theta
-
 def process():
-    ## Routine tasks
+    """ Routine Tasks """
     global PARTICLES
     rospy.init_node('Localiser_Node_MCL')
     pub = rospy.Publisher('/particles', numpy_msg(Floats), queue_size=10)
     rospy.Subscriber('/cmd_vel', Twist, cb_mcl)
-    rate = rospy.Rate(1) 
-    
-    
+    rate = rospy.Rate(1)
+
+
     while not rospy.is_shutdown():
         pub.publish(np.asarray(PARTICLES, dtype='float32'))
         rate.sleep()
