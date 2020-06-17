@@ -130,7 +130,7 @@ def process():
     rospy.Subscriber('/range_readings', numpy_msg(Floats), cb_scans)
     rospy.Subscriber('/particles', numpy_msg(Floats), cb_particles)
   
-    rate = rospy.Rate(10) # 10hz
+    rate = rospy.Rate(5) # 10hz
     print("Waiting for gazebo to start")
     time.sleep(5)
     print("Starting animation")

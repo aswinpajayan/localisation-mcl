@@ -12,8 +12,8 @@ T_MINUS_1 = 0
 NUM = 40
 START = 1
 PREV_CMD = [0, 0, 0]
-#PARTICLES = (np.random.rand(NUM * 3) * 6)- 3
-PARTICLES = np.zeros(NUM * 3)
+PARTICLES = (np.random.rand(NUM * 3) * 6)- 3
+#PARTICLES = np.zeros(NUM * 3)
 
 
 def cb_mcl(data):
@@ -30,10 +30,11 @@ def cb_mcl(data):
     x = np.arange(NUM)
     y = np.arange(NUM, 2*NUM)
     phi = np.arange(2*NUM, 3*NUM)
+    noise = 0.001 * np.random.rand(3,NUM)
     #motion update
-    PARTICLES[x] = PARTICLES[x] + lin_vel * np.cos(PARTICLES[phi]) * delta_t
-    PARTICLES[y] = PARTICLES[y] + lin_vel * np.sin(PARTICLES[phi]) * delta_t
-    PARTICLES[phi] = PARTICLES[phi] - ang_vel * delta_t
+    PARTICLES[x] = PARTICLES[x] + lin_vel * np.cos(PARTICLES[phi]) * delta_t + noise[0]
+    PARTICLES[y] = PARTICLES[y] + lin_vel * np.sin(PARTICLES[phi]) * delta_t + noise[1]
+    PARTICLES[phi] = PARTICLES[phi] - ang_vel * delta_t +  noise[2]
     #Storing motion commands
     lin_vel = data.linear.x
     ang_vel = data.angular.z

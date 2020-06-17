@@ -70,7 +70,7 @@ def control_loop():
     pub = rospy.Publisher('/cmd_vel', Twist, queue_size=20)
 
     rospy.Subscriber('/odom', Odometry, callback)
-    rate = rospy.Rate(10) 
+    rate = rospy.Rate(5) 
     
     #### Uncomment the line to save the Waypont plot
     ## plot_waypoints()
