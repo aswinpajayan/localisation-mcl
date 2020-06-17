@@ -83,16 +83,18 @@ def waypoint_listener( data):
     line_waypoints.set_data( waypoint[0], waypoint[1])
             
 
-def cb_scans( data):
+def cb_scans(data):
+    """ callback to visualise the range scan lines
+        :data : sensor readings rospy_tutorials.msg.Floats([ranges, bearings, correspondence]) """
     global line_scans, cur_pose
     x = [ ]
     y = [ ]
     sensor_readings = (data.data)
     rospy.loginfo_once(type(data.data))
     rospy.loginfo_once(data.data.shape)
-    sensor_readings = np.array(sensor_readings, dtype='float32').reshape(2, -1)
-    bearings = sensor_readings[0]
-    ranges = sensor_readings[1]
+    sensor_readings = np.array(sensor_readings, dtype='float32').reshape(3, -1)
+    ranges = sensor_readings[0]
+    bearings = sensor_readings[1]
     for i, theta in enumerate(bearings):
         x.append(cur_pose[0])
         y.append(cur_pose[1])

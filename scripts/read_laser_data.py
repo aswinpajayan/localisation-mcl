@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 import scipy.signal as signal
 
 SAMPLES = 60
-START = 1
-SENSOR_READINGS = np.array([0,0,0,0,0,0])
+SENSOR_READINGS = np.array([0, 0, 0, 0, 0, 0])
+THETAS = np.arange(SAMPLES) * np.pi / SAMPLES
 line_scans = []
 
 plt.ion()
@@ -27,34 +27,40 @@ ax.set_thetamin(0)
 ax.set_thetamax(180)
 ax.set_rlim(0)
 ax.set_rticks([2, 4, 6, 8, 10])  # Less radial ticks
+ax.setxticks(np.pi/180. * np.linspace(0, 180, 8, endpoint=False))
 ax.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
 ax.grid(True)
 ax.legend()
 line_scans, = ax.plot([], [], 'r.', alpha=0.9, ms=5 )
 line_targets, = ax.plot([], [], 'k.', alpha=0.9, ms=5 )
-def clbk_laser(msg):
-    """ call back to process laser data"""
-    global SENSOR_READINGS, line_scans,SAMPLES,START
 
-    
+def process_reading(msg):
+    """Takes in raw readings and outputs point target location
+
+    :msg : Sensor message from hokuyo controller sensor_msgs.msg.LaserScan
+    :sensor_reading: sensor reading as triplet [range bearing correspondence] list
+    """
+    global SAMPLES
     data = np.array(msg.ranges)
     reading_indeces = argrelextrema(np.array(msg.ranges), np.less)
     reading_indeces = np.array(reading_indeces).reshape(-1)
     bearings = (reading_indeces * np.pi / SAMPLES) 
-    thetas = (np.arange(len(data)) * np.pi /SAMPLES)
     ranges = np.array(msg.ranges, dtype=np.float)[reading_indeces.astype(int)]
-    line_scans.set_data(thetas, data)
-    #line_targets.set_data(bearings, ranges)
-    #ax.set_thetamin(0)
-    #ax.set_thetamax(360)
+    correspondence = [1, 2, 3]
+    sensor_reading = [ranges, bearings, correspondence]
+    return sensor_reading
 
-    SENSOR_READINGS = np.hstack((bearings, ranges))
+def clbk_laser(msg):
+    """ call back to process laser data"""
+    global SENSOR_READINGS, line_scans, THETAS
+
+    data = np.array(msg.ranges)
+    ranges, bearings, correspondence = process_reading(msg)
+    line_scans.set_data(THETAS, data)
+    line_targets.set_data(bearings, ranges)
+
+    SENSOR_READINGS = np.hstack((ranges, bearings, correspondence))
     #rospy.loginfo(SENSOR_READINGS)
-    
-    sensor_readings = np.array(SENSOR_READINGS).reshape(2, -1)
-    b = sensor_readings[0]
-    r = sensor_readings[1]
-    line_targets.set_data(b, r)
 
 def main():
     """ main method declares publishers and subscribers """
