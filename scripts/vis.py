@@ -41,15 +41,14 @@ line_waypoints = [[3,0]]
 line_poses = []
 line_scans = []
 cur_pose = []
-
-map_true = np.array([[3,1],[0,5],[-2,3],[-4,-1],[1,-2],[2,-1]])
-tracking_points = np.array([0,0])
-line_waypoints, = ax.plot([], [], 'b.', label="waypoint", ms=5)
-line_poses2, = ax.plot([],[],'r', lw=3 , alpha=0.9 )
-line_poses, = ax.plot([],[],'ro', label="robot", ms=15.0, alpha=0.8)
-line_scans, = ax.plot([],[],'k', alpha=0.9 )
-ax.scatter(map_true[:,0],map_true[:,1], c='k',marker='*', label="landmarks")
-track, = ax.plot([],[],'b:', lw=2, alpha=0.65)
+map_true = np.array([[3, 1], [0, 5], [-2, 3], [-4, -1], [1, -2], [2, -1]])
+tracking_points = np.array([0,  0])
+line_waypoints, = ax.plot([],  [], 'b.', label="waypoint", ms=5)
+line_poses2, = ax.plot([], [], 'r', lw=3 , alpha=0.9 )
+line_poses, = ax.plot([], [], 'ro', label="robot", ms=15.0, alpha=0.8)
+line_scans, = ax.plot([], [], 'k', alpha=0.9 )
+ax.scatter(map_true[:, 0], map_true[:, 1], c='k',marker='*', label="landmarks")
+track, = ax.plot([], [], 'b:',  lw=2, alpha=0.65)
     
 
 def pose_listener( data):
