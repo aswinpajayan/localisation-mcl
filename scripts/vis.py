@@ -41,13 +41,15 @@ line_waypoints = [[3,0]]
 line_poses = []
 line_scans = []
 cur_pose = []
+line_particles = []
 map_true = np.array([[3, 1], [0, 5], [-2, 3], [-4, -1], [1, -2], [2, -1]])
 tracking_points = np.array([0,  0])
-line_waypoints, = ax.plot([],  [], 'b.', label="waypoint", ms=5)
+line_waypoints, = ax.plot([],  [], 'k.', label="waypoint", ms=5)
+line_particles, = ax.plot([],  [], 'g.', label="particles", ms=5)
 line_poses2, = ax.plot([], [], 'r', lw=3 , alpha=0.9 )
 line_poses, = ax.plot([], [], 'ro', label="robot", ms=15.0, alpha=0.8)
-line_scans, = ax.plot([], [], 'k', alpha=0.9 )
-ax.scatter(map_true[:, 0], map_true[:, 1], c='k',marker='*', label="landmarks")
+line_scans, = ax.plot([], [], 'b', alpha=0.9)
+ax.scatter(map_true[:, 0], map_true[:, 1], c='k', marker='*', label="landmarks")
 track, = ax.plot([], [], 'b:',  lw=2, alpha=0.65)
     
 
@@ -84,14 +86,14 @@ def waypoint_listener( data):
 
 def cb_scans(data):
     """ callback to visualise the range scan lines
-        :data : sensor readings rospy_tutorials.msg.Floats([ranges, bearings, correspondence]) """
+        :data : sensor readings rospy_tutorials.msg.Floats([ranges, bearings]) """
     global line_scans, cur_pose
     x = [ ]
     y = [ ]
     sensor_readings = (data.data)
     rospy.loginfo_once(type(data.data))
     rospy.loginfo_once(data.data.shape)
-    sensor_readings = np.array(sensor_readings, dtype='float32').reshape(3, -1)
+    sensor_readings = np.array(sensor_readings, dtype='float32').reshape(2, -1)
     ranges = sensor_readings[0]
     bearings = sensor_readings[1]
     for i, theta in enumerate(bearings):
@@ -108,11 +110,25 @@ def cb_scans(data):
     rospy.loginfo_once('from vis.py {}'.format(data.data))
     #print("The type of data :{}",type(waypoint))
 
+
+def cb_particles(data):
+    """ callback to visualise particle localisation
+        :data : particle location rospy_tutorials.msg.Floats(([x], [y] , phi)) """
+    global line_particles, cur_pose
+    particles = (data.data)
+    rospy.loginfo_once('from vis.py sample particle set {}'.format(data.data))
+    rospy.loginfo_once('from vis.py shape of  particles {}'.format(data.data.shape))
+    particles = np.array(particles, dtype='float32').reshape(3, -1)
+    x = particles[0]
+    y = particles[1]
+    line_particles.set_data(x, y)
+ 
 def process():
     
     rospy.init_node('plotting_node', anonymous=True)
     rospy.Subscriber('/odom', Odometry, pose_listener)
     rospy.Subscriber('/range_readings', numpy_msg(Floats), cb_scans)
+    rospy.Subscriber('/particles', numpy_msg(Floats), cb_particles)
   
     rate = rospy.Rate(10) # 10hz
     print("Waiting for gazebo to start")

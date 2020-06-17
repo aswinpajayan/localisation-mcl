@@ -13,6 +13,7 @@ import scipy.signal as signal
 SAMPLES = 60
 SENSOR_READINGS = np.array([0, 0, 0, 0, 0, 0])
 THETAS = np.arange(SAMPLES) * np.pi / SAMPLES
+MAP_TRUE = np.array([[3, 1], [0, 5], [-2, 3], [-4, -1], [1, -2], [2, -1]])
 line_scans = []
 
 plt.ion()
@@ -26,8 +27,8 @@ ax = fig.add_subplot(111, polar=True)
 ax.set_thetamin(0)
 ax.set_thetamax(180)
 ax.set_rlim(0)
-ax.set_rticks([2, 4, 6, 8, 10])  # Less radial ticks
-ax.setxticks(np.pi/180. * np.linspace(0, 180, 8, endpoint=False))
+ax.set_rticks([2, 4, 6])  # Less radial ticks
+ax.set_xticks(np.pi/180. * np.linspace(0, 180, 8, endpoint=False))
 ax.set_rlabel_position(-22.5)  # Move radial labels away from plotted line
 ax.grid(True)
 ax.legend()
@@ -38,7 +39,7 @@ def process_reading(msg):
     """Takes in raw readings and outputs point target location
 
     :msg : Sensor message from hokuyo controller sensor_msgs.msg.LaserScan
-    :sensor_reading: sensor reading as triplet [range bearing correspondence] list
+    :sensor_reading: sensor reading as triplet [range bearing] list
     """
     global SAMPLES
     data = np.array(msg.ranges)
@@ -59,7 +60,7 @@ def clbk_laser(msg):
     line_scans.set_data(THETAS, data)
     line_targets.set_data(bearings, ranges)
 
-    SENSOR_READINGS = np.hstack((ranges, bearings, correspondence))
+    SENSOR_READINGS = np.hstack((ranges, bearings))
     #rospy.loginfo(SENSOR_READINGS)
 
 def main():
