@@ -77,8 +77,8 @@ def main():
     while not rospy.is_shutdown():
         pub.publish(np.asarray(SENSOR_READINGS, dtype='float32'))
         rospy.loginfo_once('from sensor {}'.format(SENSOR_READINGS))
-        fig.canvas.draw()
-        fig.canvas.flush_events()
+        #fig.canvas.draw()
+        #fig.canvas.flush_events()
         rate.sleep()
 
 if __name__ == '__main__':
