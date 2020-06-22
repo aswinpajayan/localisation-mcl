@@ -16,6 +16,7 @@ from sklearn.neighbors import NearestNeighbors
 from quat2euler import quat2euler
 from multi_gaussian import get_gaussian
 from robot_models import get_likelihood_field
+from lv_resample import re_sampling
 
 
 # global constants
@@ -32,10 +33,11 @@ XLIM = 6
 # pylint: disable-msg=C0325
 # pylint: disable-msg=C0103
 
-Z_XM = get_likelihood_field(12, MAP_L, "gaussian", [0.5, 1, 20])
-fig0, ax0 = plt.subplots(1, 1)
-ax0.imshow(Z_XM)
-plt.show()
+Z_XM = get_likelihood_field(12, MAP_L, "gaussian", [0.212, 0.1, 20])
+a =np.sum(Z_XM)
+while(np.isnan(a)):
+    print("gaya")
+    pass
 # to plot the targets and scans optionally
 # based on GLOBAL_VARIABLE
 if(ANIMATE):
@@ -76,8 +78,8 @@ pose = [0, 0, 0]
 # for storing correspondeces
 readings = [np.zeros(3), np.zeros(3), np.zeros(3)]
 # particles [X,Y,PHI]
-particles = np.zeros(NUM * 3)
-# particles = (np.random.rand(NUM * 3) * 2) - 1
+#particles = np.zeros(NUM * 3)
+particles = (np.random.rand(NUM * 3) * 2) - 1
 X = np.arange(NUM)
 Y = np.arange(NUM, 2*NUM)
 PHI = np.arange(2*NUM, 3*NUM)
@@ -172,12 +174,17 @@ def cb_mcl(data):
         return
     while(readings == []):
         pass
-    lin_vel, ang_vel = data.linear.x, data.angular.z
-    noise = 0.01 * np.random.rand(3, NUM)
+    lin_vel, ang_vel = data.linear.x, -data.angular.z
+    noise = 0.2 * np.random.rand(3, NUM)
     # ------------motion prediction step-----------------------
-    particles[X] = particles[X] + lin_vel * np.cos(particles[PHI]) * delta_t + noise[0]
-    particles[Y] = particles[Y] + lin_vel * np.sin(particles[PHI]) * delta_t + noise[1]
-    particles[PHI] = particles[PHI] - ang_vel * delta_t + noise[2]
+    if(np.abs(ang_vel) > 0.01):
+        r = lin_vel / ang_vel
+        particles[X] = particles[X] - r * np.sin(particles[PHI]) + r * np.sin(particles[PHI] + ang_vel * delta_t )
+        particles[Y] = particles[Y] + r * np.cos(particles[PHI]) - r * np.cos(particles[PHI] + ang_vel * delta_t )
+    else:
+        particles[X] = particles[X] + lin_vel * np.cos(particles[PHI]) * delta_t + noise[0]
+        particles[Y] = particles[Y] + lin_vel * np.sin(particles[PHI]) * delta_t + noise[1]
+    particles[PHI] = particles[PHI] + ang_vel * delta_t + 0.1 * noise[2]
     t_minus_1 = now
     # -----------measurement update : importance weight----------
     # 1. find endpoints of scan ,for each particle
@@ -198,13 +205,25 @@ def cb_mcl(data):
         true_targets_y = pose[1] + ranges[i] * np.sin(-np.pi/2 + bearings[i] + pose[2])
         true_targets = np.vstack((true_targets_x, true_targets_y)).reshape(-1, 2)
         # 2. find distance as metric to determine p(z|x,m)
-        dist_sq = np.array( [np.linalg.norm(endpoint - MAP_L[corr[i]]) ** 2 for endpoint in endpoints])
+        #dist_sq = np.array( [np.linalg.norm(endpoint - MAP_L[corr[i]]) ** 2 for endpoint in endpoints])
         # print(targets)
         # weights = weights * np.array([np.exp(-0.5 * x / SIGMA_SQ) if x > 0.25 else 1 for x in dist_sq])
         
         points = np.ceil(endpoints * 20).astype(int)
-        prob = np.array([Z_XM[p[1] + 120, 120 - p[0]] for p in points])
-        weights = weights * prob
+        prob = np.array([Z_XM[p[1] + 120, 120 - p[0]] for p in points], dtype=np.float)
+        #p_sum = np.sum(prob)
+        #if(np.isnan(p_sum)):
+        #    rospy.logdebug("Nan detected in prob")
+        #else:
+        #    rospy.logdebug("---------prob----------{}---".format(p_sum))
+
+        #weights = weights * prob
+        #p_sum = np.sum(weights)
+        #if(np.isnan(p_sum)):
+        #    rospy.logdebug("Nan detected in weights")
+        #else:
+        #    rospy.logdebug("---------weights--------{}-----".format(p_sum))
+        #    rospy.logdebug(weights)
         true_endpoints = np.vstack((true_endpoints, (pose[0], pose[1])))
         true_endpoints = np.vstack((true_endpoints, true_targets))
         all_endpoints = np.vstack((all_endpoints, endpoints))
@@ -212,7 +231,8 @@ def cb_mcl(data):
     weights = weights[1:] / (np.sum(weights[1:]))
     indeces = np.arange(NUM)
     # 4. importance sampling
-        #indeces = np.random.choice(indeces, NUM, p=weights)
+    indeces = np.random.choice(indeces, NUM, p=weights)
+    #indeces = re_sampling(weights)
     rospy.logdebug_throttle(5, 'indeces after resampling {}'.format(indeces))
     particles[X] = particles[indeces]
     particles[Y] = particles[NUM + indeces]

@@ -8,6 +8,7 @@ Ref: Probabilistic robotics by Sebastian Thrun
 
 """
 import cv2
+from scipy import signal
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -76,13 +77,12 @@ def get_kernel(k_size, radius, std):
     grid = np.empty(x_values.shape + (2,))
     grid[:, :, 0] = x_values
     grid[:, :, 1] = y_values
-    eta = np.sqrt(np.linalg.det(2*np.pi*cov))
     cov_inv = np.linalg.inv(cov)
     z_norm = np.einsum('...k,kl,...l->...', grid - mean, cov_inv, grid - mean)
     lim = radius ** 2 / (2 * std * std)
     z_norm[z_norm < lim] = 0
     z_norm[z_norm > lim] = z_norm[z_norm > lim] - lim
-    kernel = np.exp(-0.5*z_norm) / eta
+    kernel = np.exp(-0.5*z_norm)
     kernel = kernel / np.amax(kernel)
     return kernel
 
@@ -111,7 +111,8 @@ def get_likelihood_field(size, map_l, k_type, world_params):
     field = np.zeros((size, size), dtype=np.float)
     for point in map_l:
         field[scale * point[0] + size / 2, -scale * point[1] + size / 2] = 1.0
-    field = cv2.filter2D(field, -1, kernel)
+    field = signal.convolve2d(field, kernel)
+    #field[field < 0] = np.finfo(float).eps
     return field
 
 
