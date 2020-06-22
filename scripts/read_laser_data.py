@@ -69,7 +69,7 @@ def main():
     rospy.init_node('reading_laser')
     sub = rospy.Subscriber("/m2wr/laser/scan", LaserScan, clbk_laser)
     pub = rospy.Publisher('/range_readings', numpy_msg(Floats), queue_size=10)
-    rate = rospy.Rate(5)
+    rate = rospy.Rate(10)
 
     print("Waiting for gazebo to start")
     time.sleep(5)
