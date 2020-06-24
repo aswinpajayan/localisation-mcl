@@ -12,13 +12,15 @@ def re_sampling(weights):
     """
     low variance re-sampling
     """
-    NP = len(weights)
+    NP = 40
     w_cum = np.cumsum(weights)
-    base = np.arange(0.0, 1.0, 1 / NP)
-    re_sample_id = base + np.random.uniform(0, 1 / NP)
+    base = np.linspace(0.0, 1.0, NP)
+    re_sample_id = base + np.random.uniform(0, 1 , NP)
     indexes = []
     ind = 0
-    for ip in range(NP):
+    print(re_sample_id.shape)
+    print(w_cum.shape)
+    for ip in np.arange(40):
         while re_sample_id[ip] > w_cum[ind]:
             ind += 1
         indexes.append(ind)

@@ -112,8 +112,46 @@ def get_likelihood_field(size, map_l, k_type, world_params):
     for point in map_l:
         field[scale * point[0] + size / 2, -scale * point[1] + size / 2] = 1.0
     field = signal.convolve2d(field, kernel)
-    #field[field < 0] = np.finfo(float).eps
+    # field[field < 0] = np.finfo(float).eps
     return field
+
+
+def motion_model(pose, cmd, delta_t):
+    """velocity motion_model for the robot.
+    constants taken from the m2wr URDF
+    for implementation details, check
+    http://docs.ros.org/jade/api/gazebo_plugins/html/gazebo__ros__diff__drive_8cpp_source.html
+
+    :pose: prev pose of the robot
+    :cmd: velocity command given to robot
+    :delta_t: time elapsed
+    :returns: next pose of the robot
+
+    """
+    x, y, phi = pose
+    lin_vel, ang_vel = cmd
+    SEP = 0.4  # wheel seperation , see m2wr.gazebo
+    RAD = 0.1  # wheel radius , see m2wr.gazebo
+    v_left = (lin_vel + ang_vel * SEP / 2)
+    v_right = (lin_vel - ang_vel * SEP / 2)
+    slip_left = v_left * RAD * delta_t
+    slip_right = v_right * RAD * delta_t
+    slip_sum = slip_left + slip_right
+    slip_diff = slip_left - slip_right
+    #x = x + (slip_sum / 2) * np.cos(phi + slip_diff / (2 * SEP))
+    #y = y + (slip_sum / 2) * np.sin(phi + slip_diff / (2 * SEP))
+    ang_vel = -ang_vel
+    if(np.abs(ang_vel) >= 0.01):
+        r = lin_vel / ang_vel
+        x = x - r * np.sin(phi) + r * np.sin(phi + ang_vel * delta_t)
+        y = y + r * np.cos(phi) - r * np.cos(phi + ang_vel * delta_t)
+    else:
+        x = x + lin_vel * np.cos(phi) * delta_t
+        y = y + lin_vel * np.sin(phi) * delta_t
+    phi = phi + ang_vel * delta_t
+    #phi = phi + slip_diff / SEP
+    return [x, y, phi]
+
 
 
 def main():
