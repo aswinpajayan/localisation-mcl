@@ -2,6 +2,7 @@
 import time
 import cv2
 import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 import numpy as np
 
 import rospy
@@ -16,12 +17,12 @@ from sklearn.neighbors import NearestNeighbors
 from quat2euler import quat2euler
 from multi_gaussian import get_gaussian
 from robot_models import get_likelihood_field, motion_model
-from lv_resample import re_sampling
+from lv_resample import re_sampling, lv_sampler
 
 
 # global constants
 ANIMATE = True  # change to false to stop animating
-NUM = 40
+NUM = 50
 # MAP for the landmarks
 MAP_L = np.array([[3, 1], [0, 5], [-2, 3], [-4, -1], [1, -2], [2, -1]])
 # Parameters for measurment model
@@ -64,6 +65,16 @@ if(ANIMATE):
     line_poses, = ax.plot([], [], 'ro', label="robot", ms=15.0, alpha=0.8)
     ax.scatter(MAP_L[:, 0], MAP_L[:, 1], c='k', marker='*', label="landmarks")
     line_scans, = ax.plot([], [], 'k:')
+    fig0, ax0 = plt.subplots(1, 1)
+    # ax.set_autoscaley_on(True)
+    ax0.set_xlabel('index')
+    ax0.set_ylabel('probs')
+    ax0.set_xlim([0, NUM])
+    ax0.set_ylim([0, 1.2])
+    ax0.grid()
+    ax0.legend()
+    line_prob = []
+    line_prob, = ax0.plot([], [], 'g', alpha=0.9, ms=15)
 else:
     rospy.loginfo("interactive plotting is turned off")
     rospy.loginfo("To turn on animation set ANIMATE=True in my_mcl.py")
@@ -163,7 +174,7 @@ def cb_mcl(data):
     #  pylint: disable-msg=W0603
     global particles, t_minus_1, START, prev_cmd, pose  # pylint: disable-msg=C0103
     global line_poses, line_heading, line_particles, line_scans  # pylint: disable-msg=C0103
-    global line_heading_p  # pylint: disable-msg=C0103
+    global line_heading_p, line_prob  # pylint: disable-msg=C0103
     # pylint: enable-msg=W0603
     now = rospy.get_time()
     delta_t = now - t_minus_1
@@ -203,7 +214,7 @@ def cb_mcl(data):
     # adding motion noise
     particles[X] = particles[X] + noise[0]
     particles[Y] = particles[Y] + noise[1]
-    particles[PHI] = particles[PHI] + noise[1]
+    particles[PHI] = particles[PHI] +  0.01 * noise[1]
     t_minus_1 = now
     prev_cmd = data.linear.x, data.angular.z
     # -----------measurement update : importance weight----------
@@ -219,6 +230,8 @@ def cb_mcl(data):
         for j in np.arange(NUM):
             targets_x = particles[j] + ranges[i] * np.cos(-np.pi/2 + bearings[i] + particles[2*NUM+j])
             targets_y = particles[NUM+j] + ranges[i] * np.sin(-np.pi/2 + bearings[i] + particles[2*NUM+j])
+            targets_x = targets_x if np.abs(targets_x) < 5.2 else 5.8 * np.sign(targets_x)
+            targets_y = targets_y if np.abs(targets_y) < 5.2 else 5.8 * np.sign(targets_y)  # origin has zero probability
             targets = np.vstack((targets_x, targets_y)).reshape(-1, 2)
             endpoints = np.vstack((endpoints, targets))
         true_targets_x = pose[0] + ranges[i] * np.cos(-np.pi/2 + bearings[i] + pose[2])
@@ -231,9 +244,10 @@ def cb_mcl(data):
         
         points = np.ceil(endpoints * 20).astype(int)
         prob = np.array([Z_XM[p[1] + 120, 120 - p[0]] for p in points], dtype=np.float)
-        #p_sum = np.sum(prob)
-        #if(np.isnan(p_sum)):
-        #    rospy.logdebug("Nan detected in prob")
+        p_sum = np.sum(prob)
+        prob = prob/p_sum if p_sum != 0 else prob
+        if(np.isnan(p_sum)):
+            rospy.logfatal("Nan detected in prob")
         #else:
         #    rospy.logdebug("---------prob----------{}---".format(p_sum))
 
@@ -251,8 +265,9 @@ def cb_mcl(data):
     weights = weights[1:] / (np.sum(weights[1:]))
     indeces = np.arange(NUM)
     # 4. importance sampling
-    # indeces = np.random.choice(indeces, NUM, p=weights)
-    indeces = re_sampling(weights)
+    indeces = np.random.choice(indeces, NUM, p=weights)
+    #indeces = re_sampling(weights)
+    #indeces = lv_sampler(weights)
     rospy.logdebug_throttle(5, 'indeces after resampling {}'.format(indeces))
     particles[X] = particles[indeces]
     particles[Y] = particles[NUM + indeces]
@@ -271,6 +286,9 @@ def cb_mcl(data):
         line_particles.set_data(particles[X], particles[Y])
         line_targets.set_data(all_endpoints[:, 0], all_endpoints[:, 1])
         line_scans.set_data(true_endpoints[:, 0], true_endpoints[:, 1])
+        i = np.arange(NUM)
+        c = np.cumsum(weights)
+        line_prob.set_data(i, c)
         rospy.logdebug_throttle(5, true_targets)
     else:
         rospy.loginfo_once("interactive plotting is turned off")
@@ -291,8 +309,11 @@ def process():
 
     while not rospy.is_shutdown():
         pub.publish(np.asarray(particles, dtype='float32'))
-        fig.canvas.draw()
-        fig.canvas.flush_events()
+        if(ANIMATE):
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+            fig0.canvas.draw()
+            fig0.canvas.flush_events()
         rate.sleep()
 
 

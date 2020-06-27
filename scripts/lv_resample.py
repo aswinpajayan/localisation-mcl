@@ -25,3 +25,24 @@ def re_sampling(weights):
             ind += 1
         indexes.append(ind)
     return indexes
+
+def lv_sampler(weights):
+    """ 
+    function to perform low variance sampling 
+    taken from S thruns Book
+    :weights: importance weights of corresponding particles
+    :returns: indeces 
+    """
+    indeces = []
+    NUM = len(weights)
+    r = np.random.uniform(0, 1 / NUM)
+    c = weights[0]
+    i = 0
+    for m in range(NUM):
+        u = r + (m - 1) * (1 / NUM)
+        while(u > c):
+            i += 1
+            c += weights[i]
+        indeces.append(i)
+    return np.array(indeces, dtype='int')
+
