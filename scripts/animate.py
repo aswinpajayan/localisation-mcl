@@ -6,9 +6,12 @@ import matplotlib.animation as animation
 # initialization function: plot the background of each fram
 a = np.random.rand(10,10)
 plt.ion()
-plt.figure()
-ax = plt.gca()
+fig, ax = plt.subplots(1, 1)
+#plt.figure()
+#ax = plt.gca()
+#fig = plt.gcf()
 im=ax.imshow(a, interpolation='none', extent=[0,10,0,10], aspect="auto")
+#plt.show(block=True)
 def init():
     im.set_data(np.random.random((5,5)))
     return [im]
@@ -16,7 +19,7 @@ def init():
 # animation function.  This is called sequentially
 def animate(i):
     global a
-    a=a*np.exp(-0.001*i)    # exponential decay of the values
+    a=a*np.exp(-0.1*i)    # exponential decay of the values
     return a
 
 def main():
