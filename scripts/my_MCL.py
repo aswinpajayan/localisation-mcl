@@ -42,7 +42,7 @@ alpha_slow = 0.1
 alpha_fast = 0.7
 
 
-Z_XM = get_likelihood_field(15, MAP_L, "gaussian", [0.212, 0.2, 20])
+Z_XM = get_likelihood_field(20, MAP_L, "gaussian", [0.212, 0.2, 20])
 a =np.sum(Z_XM)
 while(np.isnan(a)):
     rospy.logfatal_once("caught Nan in get_likelihood_field")
@@ -108,34 +108,6 @@ particles = np.zeros(NUM * 3)
 particles[X] = -5.5 + (np.random.rand(NUM)) 
 particles[Y] =  0.5 - (np.random.rand(NUM)) 
 #  pylint: enable-msg=C0103
-
-
-def measurement_model():
-    """maximum likelihood field measurement model
-
-    :MAP_L: land mark locations
-    :returns: sets a global dictionary of discretised grid
-    and thier likeihood values
-    """
-    num_of_gridpoints = 100
-    scale = XLIM * 2 / num_of_gridpoints
-    # kernel size
-    k_size = np.round(np.sqrt(SIGMA_SQ) * 5 * scale)
-    k_size = 40
-    ml_field = np.zeros((XLIM, YLIM), dtype=np.float)
-    x_axis = np.arange(-k_size, k_size)
-    y_axis = np.linspace(-k_size, k_size)
-    x_values, y_values = np.meshgrid(x_axis, y_axis)
-    grid = np.empty(x_values.shape + (2,))
-    grid[:, :, 0] = x_values
-    grid[:, :, 1] = y_values
-    mean = np.array([0, 0])
-    cov = np.diag([10, 10])
-    rospy.loginfo('covariance {}'.format(cov))
-    kernel = get_gaussian(grid, mean, cov)
-    kernel = kernel / np.max(kernel)
-    # print(kernel)
-    # cv2.imshow('kernel', kernel)
 
 
 def map_angle(theta):
@@ -206,7 +178,7 @@ def cb_mcl(data):
     while(readings == []):
         pass
     lin_vel, ang_vel = prev_cmd
-    noise = 0.002 * np.random.rand(3, NUM)
+    noise = 0.02 * np.random.rand(3, NUM)
     if(VIEW_PROB):
         imscans = cv2.merge((Z_XM, Z_XM, Z_XM))
     for i in np.arange(NUM):
@@ -230,11 +202,12 @@ def cb_mcl(data):
     except:
         rospy.logwarn('invalid reading recieved, skipping step')
         return
-    for i in np.arange(len(ranges)):
+    for j in np.arange(NUM):
         endpoints = np.array([0, 0])
         # targets_x = particles[X] + ranges[i] * np.cos(-np.pi/2 + bearings[i] + np.array((map(map_angle, particles[PHI]))))
         # targets_y = particles[Y] + ranges[i] * np.sin(-np.pi/2 + bearings[i] + np.array((map(map_angle, particles[PHI]))))
-        for j in np.arange(NUM):
+        for i in np.arange(len(ranges)):
+            prob = 1.0
             targets_x = particles[j] + ranges[i] * np.cos(-np.pi/2 + bearings[i] + particles[2*NUM+j])
             targets_y = particles[NUM+j] + ranges[i] * np.sin(-np.pi/2 + bearings[i] + particles[2*NUM+j])
             targets = np.vstack((targets_x, targets_y)).reshape(-1, 2)
@@ -248,18 +221,18 @@ def cb_mcl(data):
         # weights = weights * np.array([np.exp(-0.5 * x / SIGMA_SQ) if x > 0.25 else 1 for x in dist_sq])
         
         points = np.ceil(endpoints * 20).astype(int)
-        prob = np.array([Z_XM[p[0] + 150, 150 - p[1]] for p in points], dtype=np.float)
-        p_sum = np.sum(prob)
+        prob = np.array([Z_XM[p[0] + 200, 200 - p[1]] for p in points], dtype=np.float)
+        prob_prod = np.prod(prob)
         #prob = prob/p_sum if p_sum != 0 else prob
-        if(np.isnan(p_sum)):
+        if(np.isnan(prob_prod)):
             rospy.logfatal("Nan detected in prob")
         if(VIEW_PROB):
             for p in points:
-                cv2.circle(imscans, (p[0] + 150, 150 - p[1]), radius=2, color=(0, 0, 255), thickness=-1)
+                cv2.circle(imscans, (p[0] + 200, 200 - p[1]), radius=2, color=(0, 0, 255), thickness=-1)
         #else:
         #    rospy.logdebug("---------prob----------{}---".format(p_sum))
 
-        weights = weights * prob
+        weights[j] = prob_prod
         #p_sum = np.sum(weights)
         #if(np.isnan(p_sum)):
         #    rospy.logdebug("Nan detected in weights")
@@ -270,11 +243,11 @@ def cb_mcl(data):
         true_endpoints = np.vstack((true_endpoints, true_targets))
         all_endpoints = np.vstack((all_endpoints, endpoints))
     # 3. normalise the weights
-        if(np.sum(weights[1:]) == 0):
-            rospy.logwarn('attempted division by zero')
-            rospy.logwarn('sum of weights is zero')
-            weights = np.ones(NUM + 1, dtype=np.float)
-            return
+    if(np.sum(weights[1:]) == 0):
+        rospy.logwarn('attempted division by zero')
+        rospy.logwarn('sum of weights is zero')
+        weights = np.ones(NUM + 1, dtype=np.float)
+        return
 
     try:
         weights = weights[1:] / (np.sum(weights[1:]))
@@ -345,7 +318,6 @@ def process():
 
 if __name__ == '__main__':
     try:
-        measurement_model()
         print("Waiting for gazebo to start")
         time.sleep(5)
         print("Starting the control loop")
