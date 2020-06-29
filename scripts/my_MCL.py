@@ -22,7 +22,8 @@ from lv_resample import re_sampling, lv_sampler
 
 # global constants
 ANIMATE = True  # change to false to stop animating
-NUM = 100
+VIEW_PROB = False
+NUM = 200
 # MAP for the landmarks
 MAP_L = np.array([[3, 1], [0, 5], [-2, 3], [-4, -1], [1, -2], [2, -1]])
 # Parameters for measurment model
@@ -33,6 +34,13 @@ XLIM = 6
 # global variables and declarations
 # pylint: disable-msg=C0325
 # pylint: disable-msg=C0103
+
+# parameters for augmented MCL
+w_slow = 0
+w_fast = 0
+alpha_slow = 0.1
+alpha_fast = 0.7
+
 
 Z_XM = get_likelihood_field(15, MAP_L, "gaussian", [0.212, 0.2, 20])
 a =np.sum(Z_XM)
@@ -75,9 +83,10 @@ if(ANIMATE):
     ax0.legend()
     line_prob = []
     line_prob, = ax0.plot([], [], 'g', alpha=0.9, ms=15)
-    fig2, ax2 = plt.subplots(1, 1)
-    Z_XM3 = cv2.merge((Z_XM, Z_XM, Z_XM))
-    im = ax2.imshow(Z_XM3, interpolation='none', aspect="auto")
+    if(VIEW_PROB):
+        fig2, ax2 = plt.subplots(1, 1)
+        Z_XM3 = cv2.merge((Z_XM, Z_XM, Z_XM))
+        im = ax2.imshow(Z_XM3, interpolation='none', aspect="auto")
 else:
     rospy.loginfo("interactive plotting is turned off")
     rospy.loginfo("To turn on animation set ANIMATE=True in my_mcl.py")
@@ -177,7 +186,7 @@ def cb_mcl(data):
     #  pylint: disable-msg=W0603
     global particles, t_minus_1, START, prev_cmd, pose  # pylint: disable-msg=C0103
     global line_poses, line_heading, line_particles, line_scans  # pylint: disable-msg=C0103
-    global line_heading_p, line_prob, im  # pylint: disable-msg=C0103
+    global line_heading_p, line_prob, im, NUM, X, Y, PHI  # pylint: disable-msg=C0103
     # pylint: enable-msg=W0603
     now = rospy.get_time()
     delta_t = now - t_minus_1
@@ -197,19 +206,9 @@ def cb_mcl(data):
     while(readings == []):
         pass
     lin_vel, ang_vel = prev_cmd
-    #noise = 0.2 * np.random.rand(3, NUM)
-    #noise = 0.2 * np.random.rand(3, NUM)
-    # ------------motion prediction step-----------------------
-   # ang_vel = -ang_vel
-   # if(np.abs(ang_vel) >= 0.08):
-   #     r = lin_vel / ang_vel
-   #     particles[X] = particles[X] - r * np.sin(particles[PHI]) + r * np.sin(particles[PHI] + ang_vel * delta_t )
-   #     particles[Y] = particles[Y] + r * np.cos(particles[PHI]) - r * np.cos(particles[PHI] + ang_vel * delta_t )
-   # else:
-   #     particles[X] = particles[X] + lin_vel * np.cos(particles[PHI]) * delta_t
-   #     particles[Y] = particles[Y] + lin_vel * np.sin(particles[PHI]) * delta_t
-   # particles[PHI] = particles[PHI] + ang_vel * delta_t + 0.1 * noise[2]
-    imscans = cv2.merge((Z_XM, Z_XM, Z_XM))
+    noise = 0.002 * np.random.rand(3, NUM)
+    if(VIEW_PROB):
+        imscans = cv2.merge((Z_XM, Z_XM, Z_XM))
     for i in np.arange(NUM):
         x = motion_model_simple([particles[i], particles[NUM + i], particles[2*NUM + i]],[lin_vel, ang_vel], delta_t)
         rospy.logdebug_throttle(80, "particle 0: {}".format(x))
@@ -225,8 +224,12 @@ def cb_mcl(data):
     # 1. find endpoints of scan ,for each particle
     true_endpoints = np.array([0, 0])
     all_endpoints = np.array([0, 0])
-    ranges, bearings, corr = readings
-    weights = np.ones((NUM + 1), dtype=np.float)
+    try:
+        ranges, bearings, corr = readings
+        weights = np.ones((NUM + 1), dtype=np.float)
+    except:
+        rospy.logwarn('invalid reading recieved, skipping step')
+        return
     for i in np.arange(len(ranges)):
         endpoints = np.array([0, 0])
         # targets_x = particles[X] + ranges[i] * np.cos(-np.pi/2 + bearings[i] + np.array((map(map_angle, particles[PHI]))))
@@ -234,8 +237,6 @@ def cb_mcl(data):
         for j in np.arange(NUM):
             targets_x = particles[j] + ranges[i] * np.cos(-np.pi/2 + bearings[i] + particles[2*NUM+j])
             targets_y = particles[NUM+j] + ranges[i] * np.sin(-np.pi/2 + bearings[i] + particles[2*NUM+j])
-            targets_x = targets_x 
-            targets_y = targets_y 
             targets = np.vstack((targets_x, targets_y)).reshape(-1, 2)
             endpoints = np.vstack((endpoints, targets))
         true_targets_x = pose[0] + ranges[i] * np.cos(-np.pi/2 + bearings[i] + pose[2])
@@ -249,10 +250,10 @@ def cb_mcl(data):
         points = np.ceil(endpoints * 20).astype(int)
         prob = np.array([Z_XM[p[0] + 150, 150 - p[1]] for p in points], dtype=np.float)
         p_sum = np.sum(prob)
-        prob = prob/p_sum if p_sum != 0 else prob
+        #prob = prob/p_sum if p_sum != 0 else prob
         if(np.isnan(p_sum)):
             rospy.logfatal("Nan detected in prob")
-        if(ANIMATE):
+        if(VIEW_PROB):
             for p in points:
                 cv2.circle(imscans, (p[0] + 150, 150 - p[1]), radius=2, color=(0, 0, 255), thickness=-1)
         #else:
@@ -269,13 +270,27 @@ def cb_mcl(data):
         true_endpoints = np.vstack((true_endpoints, true_targets))
         all_endpoints = np.vstack((all_endpoints, endpoints))
     # 3. normalise the weights
-    weights = weights[1:] / (np.sum(weights[1:]))
+        if(np.sum(weights[1:]) == 0):
+            rospy.logwarn('attempted division by zero')
+            rospy.logwarn('sum of weights is zero')
+            weights = np.ones(NUM + 1, dtype=np.float)
+            return
+
+    try:
+        weights = weights[1:] / (np.sum(weights[1:]))
+    except RuntimeWarning:
+        rospy.logfatal('invalid values in weights')
+        if(np.sum(weights[1:]) == 0):
+            rospy.logwarn('attempted division by zero')
+            rospy.logwarn('sum of weights is zero')
+        rospy.loginfo('weights : {}'.format(weights))
+        return
     indeces = np.arange(NUM)
     # 4. importance sampling
-    indeces = np.random.choice(indeces, NUM, p=weights)
+    #indeces = np.random.choice(indeces, NUM, p=weights)
     #indeces = re_sampling(weights)
-    #indeces = lv_sampler(weights)
-    rospy.logdebug_throttle(5, 'indeces after resampling {}'.format(indeces))
+    indeces = lv_sampler(weights)
+    rospy.logdebug('indeces after resampling {}'.format(indeces))
     particles[X] = particles[indeces]
     particles[Y] = particles[NUM + indeces]
     particles[PHI] = particles[2*NUM + indeces]
@@ -295,7 +310,8 @@ def cb_mcl(data):
         line_scans.set_data(true_endpoints[:, 0], true_endpoints[:, 1])
         i = np.arange(NUM)
         line_prob.set_data(i, weights)
-        im.set_array(imscans)
+        if(VIEW_PROB):
+            im.set_array(imscans)
         rospy.logdebug_throttle(5, true_targets)
     else:
         rospy.loginfo_once("interactive plotting is turned off")
@@ -319,8 +335,9 @@ def process():
         if(ANIMATE):
             fig.canvas.draw()
             fig.canvas.flush_events()
-            fig0.canvas.draw()
-            fig0.canvas.flush_events()
+            #fig0.canvas.draw()
+            #fig0.canvas.flush_events()
+        if(VIEW_PROB):
             fig2.canvas.draw()
             fig2.canvas.flush_events()
         rate.sleep()

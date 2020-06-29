@@ -162,6 +162,17 @@ def motion_model(pose, cmd, delta_t):
     x = x + (slip_sum / 2) * np.cos(phi + slip_diff / (2 * SEP))
     y = y + (slip_sum / 2) * np.sin(phi + slip_diff / (2 * SEP))
     phi = phi + slip_diff / SEP
+    # ------------motion prediction step-----------------------
+   # ang_vel = -ang_vel
+   # if(np.abs(ang_vel) >= 0.08):
+   #     r = lin_vel / ang_vel
+   #     particles[X] = particles[X] - r * np.sin(particles[PHI]) + r * np.sin(particles[PHI] + ang_vel * delta_t )
+   #     particles[Y] = particles[Y] + r * np.cos(particles[PHI]) - r * np.cos(particles[PHI] + ang_vel * delta_t )
+   # else:
+   #     particles[X] = particles[X] + lin_vel * np.cos(particles[PHI]) * delta_t
+   #     particles[Y] = particles[Y] + lin_vel * np.sin(particles[PHI]) * delta_t
+   # particles[PHI] = particles[PHI] + ang_vel * delta_t + 0.1 * noise[2]
+ 
     return [x, y, phi]
 
 
