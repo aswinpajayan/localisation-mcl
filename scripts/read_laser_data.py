@@ -69,7 +69,7 @@ def main():
     rospy.init_node('reading_laser')
     sub = rospy.Subscriber("/m2wr/laser/scan", LaserScan, clbk_laser)
     pub = rospy.Publisher('/range_readings', numpy_msg(Floats), queue_size=10)
-    rate = rospy.Rate(5)
+    rate = rospy.Rate(10)
 
     print("Waiting for gazebo to start")
     time.sleep(5)
@@ -77,8 +77,8 @@ def main():
     while not rospy.is_shutdown():
         pub.publish(np.asarray(SENSOR_READINGS, dtype='float32'))
         rospy.loginfo_once('from sensor {}'.format(SENSOR_READINGS))
-        fig.canvas.draw()
-        fig.canvas.flush_events()
+        #fig.canvas.draw()
+        #fig.canvas.flush_events()
         rate.sleep()
 
 if __name__ == '__main__':

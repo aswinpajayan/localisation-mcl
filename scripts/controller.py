@@ -83,33 +83,45 @@ def control_loop():
     
     while not rospy.is_shutdown():
     
+        x_err = 2-pose[0]
+        y_err = 0-pose[1]
+        
+        dist_error = (x_err**2 + y_err**2)**0.5
         ## When close to waypoint, sample a new waypoint
-        if dist_error < 0.3:
-            i = i+1
-            wp = get_waypoint(i)
+        velocity_msg = Twist()
+        if dist_error > 0.3:
+            velocity_msg.angular.z = 0 
+            velocity_msg.linear.x = 0.25
+        else:
+            if(pose[2] < numpy.pi/2):
+                velocity_msg.angular.z = -0.5 
+                velocity_msg.linear.x = 0.0
+            else: 
+                velocity_msg.angular.z = 0.0
+                velocity_msg.linear.x = 0.25
+
         
 
 
         ### Compute errors
-        x_err = wp[0]-pose[0]
-        y_err = wp[1]-pose[1]
-        theta_ref = atan2(y_err, x_err)
-        
-        dist_error = (x_err**2 + y_err**2)**0.5
-        
-        theta_err = map_angle(theta_ref - pose[2])
+        #x_err = wp[0]-pose[0]
+        #y_err = wp[1]-pose[1]
+        #theta_ref = atan2(y_err, x_err)
+        #
+        #dist_error = (x_err**2 + y_err**2)**0.5
+        #
+        #theta_err = map_angle(theta_ref - pose[2])
 
-        ### Debug string 
-        #print("\n heading:{:0.5f},\tref:{:0.5f},\terror:{:0.5f}".format(pose[2], theta_ref, theta_err))
-        
-        ### Apply the proportional control
-        K1=0.4  ## not aggressive
-        K2=1.0  ## aggressive
-        
-        
-        velocity_msg = Twist()
-        velocity_msg.linear.x = sat(K1*dist_error*cos(theta_err), 0.25)
-        velocity_msg.angular.z = sat(K2*theta_err, 0.5)
+        #### Debug string 
+        ##print("\n heading:{:0.5f},\tref:{:0.5f},\terror:{:0.5f}".format(pose[2], theta_ref, theta_err))
+        #
+        #### Apply the proportional control
+        #K1=0.4  ## not aggressive
+        #K2=1.0  ## aggressive
+        #
+        #temp = K2 * theta_err 
+        #velocity_msg.linear.x = sat(K1*dist_error*cos(theta_err), 0.25)
+        #velocity_msg.angular.z = sat(temp, 0.5) if numpy.abs(temp) > 0.1 else 0
         
         
         pub.publish(velocity_msg)

@@ -136,8 +136,8 @@ def process():
     print("Starting animation")
     
     while not rospy.is_shutdown():
-        fig.canvas.draw()
-        fig.canvas.flush_events()
+        #fig.canvas.draw()
+        #fig.canvas.flush_events()
         
         rate.sleep()
 

@@ -8,10 +8,11 @@
     <arg name="recording" value="false"/>
     <arg name="debug" value="false"/>
   </include>
+  <arg name= "DEBUG_LOCALISER"  default="false" doc="To display console debug logs for localiser node (my_MCL.py)"/>
 
     <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find sem_localise)/urdf/m2wr.xacro'" />
     
-    <arg name="x" default="0"/>
+    <arg name="x" default="-5"/>
     <arg name="y" default="0"/>
     <arg name="z" default="0.5"/>
     
@@ -20,7 +21,12 @@
     <node name="visualiser" pkg="sem_localise" type="vis.py" output="screen"/>
     <node name="robot_control" pkg="sem_localise" type="controller.py" output="screen"/>
     <node name="sensor_read" pkg="sem_localise" type="read_laser_data.py" output="screen" />
-    <node name="localiser_node" pkg="sem_localise" type="my_MCL.py" output="screen" />
+    <node name="localiser_node" pkg="sem_localise" type="my_MCL.py" args="" output="screen" >
+        <param name="plot" value="True" type="Boolean" />
+    </node>
+    <group if="$(arg DEBUG_LOCALISER)" >
+        <node pkg="rosservice" type="rosservice" name="set_logger_level" args="call --wait /localiser_node/set_logger_level '{logger: 'rosout', level: 'DEBUG'}'"/>
+     </group>
           
 </launch>
 
