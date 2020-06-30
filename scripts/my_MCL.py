@@ -22,7 +22,7 @@ from lv_resample import re_sampling, lv_sampler
 
 # global constants
 ANIMATE = True  # change to false to stop animating
-VIEW_PROB = False
+VIEW_PROB = True
 NUM = 200
 # MAP for the landmarks
 MAP_L = np.array([[3, 1], [0, 5], [-2, 3], [-4, -1], [1, -2], [2, -1]])

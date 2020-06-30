@@ -69,7 +69,7 @@ def get_kernel(k_size, radius, std):
     :std    : standard deviation of meaurement model
     returns: flat top gaussian kernel  """
 
-    cov = np.diag([std, std])
+    cov = np.diag([std ** 2, std ** 2])
     mean = np.array([0, 0], dtype=np.float)
     x_axis = np.arange(-k_size, k_size)
     y_axis = np.arange(-k_size, k_size)
@@ -178,8 +178,9 @@ def motion_model(pose, cmd, delta_t):
 
 
 def main():
-    """main method
-    """
+    kernel = get_kernel(50, 20, 20)
+    plt.imshow(kernel)
+    plt.show()
     field = get_likelihood_field(12, MAP_L, "gaussian", [5, 5, 20])
     plt.imshow(field)
     plt.show()
